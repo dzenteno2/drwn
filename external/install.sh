@@ -72,7 +72,8 @@ if (! -e opencv && (("$1" == "OpenCV") || ("$1" == "opencv"))) then
 	      -D CMAKE_INSTALL_PREFIX=${CODEBASE}/external/opencv \
 	      -D CMAKE_CXX_FLAGS="-stdlib=libc++" \
 	      -D CMAKE_EXE_LINKER_FLAGS="-stdlib=libc++ -lc++" \
-	      -D BUILD_NEW_PYTHON_SUPPORT=OFF .
+	      -D BUILD_NEW_PYTHON_SUPPORT=OFF \
+          -D WITH_CUDA=OFF .
     else
 	cmake -D CMAKE_BUILD_TYPE=RELEASE \
 	      -D CMAKE_INSTALL_PREFIX=${CODEBASE}/external/opencv \

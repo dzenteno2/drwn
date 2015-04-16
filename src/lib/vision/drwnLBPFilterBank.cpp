@@ -20,6 +20,11 @@
 
 // drwnLBPFilterBank --------------------------------------------------------
 
+//drwnLBPFilterBank::drwnLBPFilterBank() : _b8Neighbourhood(false)
+//{
+
+//}
+
 drwnLBPFilterBank::drwnLBPFilterBank(bool b8Neighbourbood) :
     _b8Neighbourhood(b8Neighbourbood)
 {
@@ -45,7 +50,7 @@ void drwnLBPFilterBank::filter(const cv::Mat& img, std::vector<cv::Mat>& respons
         cv::cvtColor(img, tmp, CV_RGB2GRAY);
         return filter(tmp, response);
     }
-    DRWN_ASSERT_MSG(img.depth() == CV_8U, "image must be 8-bit");
+    //DRWN_ASSERT_MSG(img.depth() == CV_8U, "image must be 8-bit");
 
     // allocate output channels as 32-bit floating point
     for (unsigned i = 0; i < response.size(); i++) {
@@ -59,9 +64,9 @@ void drwnLBPFilterBank::filter(const cv::Mat& img, std::vector<cv::Mat>& respons
 
     for (int y = 0; y < img.rows; y++) {
 
-        const unsigned char *p = img.ptr<const unsigned char>(y);
-        const unsigned char *p_prev = (y == 0) ? p : img.ptr<const unsigned char>(y - 1);
-        const unsigned char *p_next = (y == img.rows - 1) ? p : img.ptr<const unsigned char>(y + 1);
+        const float *p = img.ptr<const float>(y);
+        const float *p_prev = (y == 0) ? p : img.ptr<const float>(y - 1);
+        const float *p_next = (y == img.rows - 1) ? p : img.ptr<const float>(y + 1);
 
         // 4-connected neighbourhood
         for (int x = 0; x < img.cols; x++) {

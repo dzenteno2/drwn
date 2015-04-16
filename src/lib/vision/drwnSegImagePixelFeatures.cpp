@@ -36,6 +36,12 @@ void drwnSegImagePixelFeatures::cacheInstanceData(const drwnSegImageInstance& in
     _instanceHeight = instance.height();
 }
 
+void drwnSegImagePixelFeatures::cacheInstanceData(int width, int height)
+{
+    _instanceWidth = width;
+    _instanceHeight = height;
+}
+
 void drwnSegImagePixelFeatures::clearInstanceData()
 {
     DRWN_LOG_DEBUG("clearing data for " << _instanceName);
@@ -67,8 +73,8 @@ int drwnSegImageStdPixelFeatures::FEATURE_GRID_SPACING = 5;
 bool drwnSegImageStdPixelFeatures::INCLUDE_RGB = false;
 bool drwnSegImageStdPixelFeatures::INCLUDE_HOG = false;
 bool drwnSegImageStdPixelFeatures::INCLUDE_LBP = false;
-bool drwnSegImageStdPixelFeatures::INCLUDE_ROWCOLAGG = false;
-bool drwnSegImageStdPixelFeatures::INCLUDE_LOCATION = true;
+bool drwnSegImageStdPixelFeatures::INCLUDE_ROWCOLAGG = true;
+bool drwnSegImageStdPixelFeatures::INCLUDE_LOCATION = false;
 string drwnSegImageStdPixelFeatures::AUX_FEATURE_DIR;
 vector<string> drwnSegImageStdPixelFeatures::AUX_FEATURE_EXT;
 
@@ -93,6 +99,10 @@ int drwnSegImageStdPixelFeatures::numFeatures() const
     n += (int)AUX_FEATURE_EXT.size();
 
     return n;
+}
+
+void drwnSegImageStdPixelFeatures::cacheInstanceData(int height, int width){
+    drwnSegImagePixelFeatures::cacheInstanceData(height, width);
 }
 
 void drwnSegImageStdPixelFeatures::cacheInstanceData(const drwnSegImageInstance& instance)
@@ -197,6 +207,8 @@ void drwnSegImageStdPixelFeatures::clearInstanceData()
     drwnSegImagePixelFeatures::clearInstanceData();
 }
 
+
+
 void drwnSegImageStdPixelFeatures::appendPixelFeatures(int x, int y, vector<double>& phi) const
 {
     DRWN_ASSERT_MSG(!_filters.empty(), "filter response cache is empty for " << _instanceName);
@@ -269,6 +281,10 @@ void drwnSegImageStdPixelFeatures::appendPixelFeatures(int x, int y, vector<doub
         const int indx = y * _instanceWidth + x;
         phi.insert(phi.end(), _auxFeatures[indx].begin(), _auxFeatures[indx].end());
     }
+}
+
+void drwnSegImageStdPixelFeatures::setFilters(vector<cv::Mat>& r){
+    _filters.addResponseImages(r);
 }
 
 // drwnSegImageFilePixelFeatures class -------------------------------------

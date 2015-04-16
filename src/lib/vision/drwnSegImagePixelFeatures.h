@@ -67,6 +67,7 @@ class drwnSegImagePixelFeatures : public drwnCloneable {
 
     //! caches data for a given drwnSegImageInstance
     virtual void cacheInstanceData(const drwnSegImageInstance& instance);
+    virtual void cacheInstanceData(int height, int width);
     //! clears any cached data
     virtual void clearInstanceData();
 
@@ -108,11 +109,13 @@ class drwnSegImageStdPixelFeatures : public drwnSegImagePixelFeatures {
 
     // data caching
     void cacheInstanceData(const drwnSegImageInstance& instance);
+    void cacheInstanceData(int height, int width);
     void clearInstanceData();
 
     // feature computation
     int numFeatures() const;
     void appendPixelFeatures(int x, int y, vector<double>& phi) const;
+    void setFilters(vector<cv::Mat>& r);
 };
 
 // drwnSegImageFilePixelFeatures class -------------------------------------

@@ -34,6 +34,7 @@ class drwnLBPFilterBank {
 
  public:
     //! construct an LBP filterbank
+    //drwnLBPFilterBank();
     drwnLBPFilterBank(bool b8Neighbourbood = false);
     virtual ~drwnLBPFilterBank();
 
