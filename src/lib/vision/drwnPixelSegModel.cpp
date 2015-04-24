@@ -277,6 +277,41 @@ void drwnPixelSegModel::learnTrainingClassWeights(const vector<string>& baseName
     Eigen::Map<VectorXd>(&_classTrainingWeights[0], _classTrainingWeights.size()) /= total;
 }
 
+void drwnPixelSegModel::learnBoostedPixelModels(vector<vector<double> > featureVectors, vector<int> featureLabels, int numClasses){
+	// compute feature weights
+	vector<double> featureWeights(featureVectors.size(), 1.0);
+	vector<int> classCounts(numClasses, 0);
+	for (unsigned i = 0; i < featureLabels.size(); i++) {
+		classCounts[featureLabels[i]] += 1;
+	}
+
+	// allocate and classifiers
+	_pixelClassModels.resize(numClasses, NULL);
+	for (int i = 0; i < (int)_pixelClassModels.size(); i++) {
+		DRWN_LOG_MESSAGE("training boosted classifier for class " << i << "...");
+		DRWN_ASSERT(classCounts[i] > 0);
+
+		// labels and weights for this classId
+		vector<int> localLabels(featureLabels.size(), -1);
+		const double w1 = 1.0 / (double)classCounts[i];
+		const double w0 = 1.0 / (double)(featureLabels.size() - classCounts[i]);
+		for (unsigned j = 0; j < featureLabels.size(); j++) {
+			localLabels[j] = (featureLabels[j] == i) ? 1 : 0;
+			featureWeights[j] = (featureLabels[j] == i) ? w1 : w0;
+		}
+
+		// train classifier
+		if (_pixelClassModels[i] == NULL) {
+			_pixelClassModels[i] = new drwnBoostedClassifier(featureVectors[0].size(), 2);
+		} else {
+			_pixelClassModels[i]->initialize(featureVectors[0].size(), 2);
+		}
+		double J = ((drwnClassifier *)_pixelClassModels[i])->train(featureVectors,
+			localLabels, featureWeights);
+		DRWN_LOG_VERBOSE("...training objective: " << J);
+	}
+}
+
 void drwnPixelSegModel::learnBoostedPixelModels(const vector<string>& baseNames, int subSample)
 {
     // accumulate training data

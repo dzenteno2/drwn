@@ -102,6 +102,7 @@ class drwnPixelSegModel : public drwnWriteable {
     //! learn boosted classifiers for predicting classes from pixel features
     void learnBoostedPixelModels(const vector<string>& baseNames, int subSample = 0);
     //! learn unary potentials for calibrating pixel predictions
+    void learnBoostedPixelModels(vector<vector<double> > featureVectors, vector<int> featureLabels, int numClasses);
     void learnPixelUnaryModel(const vector<string>& baseNames, int subSample = 0);
     //! learn the weight of the pairwise constrast term
     void learnPixelContrastWeight(const vector<string>& baseNames);

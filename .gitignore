@@ -17,3 +17,7 @@
 
 # Local Darwin files
 make.local
+external
+.DS_Store
+*.d
+drwn.xcodeproj
