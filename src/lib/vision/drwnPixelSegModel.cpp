@@ -104,6 +104,44 @@ public:
     }
 };
 
+vector<double> drwnPixelSegModel::drwnGridSearchOperator(drwnSegImageInstance &instance, const vector<vector<int> > &pixelLabels, vector<double>& _robustPottsValues,
+		vector<double>& _pairwiseContrastValues, int height, int width){
+
+	vector<double> errors_v;
+
+	// load labels
+	MatrixXi labels(height, width);
+
+	labels.resize(pixelLabels.size(), pixelLabels[0].size());
+	for (int y = 0; y < pixelLabels.size(); y++) {
+		for (int x = 0; x < pixelLabels[0].size(); x++) {
+			labels(y, x) = pixelLabels[y][x];
+		}
+	}
+
+
+	const double numUnknown = (double)(labels.array() == -1).cast<int>().sum();
+
+	// predict labels
+	for (unsigned i = 0; i < _robustPottsValues.size(); i++) {
+		for (unsigned j = 0; j < _pairwiseContrastValues.size(); j++) {
+
+			drwnRobustPottsCRFInference inf;
+			inf.alphaExpansion(&instance, _pairwiseContrastValues[j], _robustPottsValues[i]);
+
+			// unweighted error
+			double errors = (double)(instance.pixelLabels.array() != labels.array()).cast<int>().sum() - numUnknown;
+
+			errors_v.push_back(errors);
+
+
+		}
+	}
+
+	return errors_v;
+
+}
+
 // drwnPixelSegModel class ------------------------------------------------
 
 drwnPixelSegModel::drwnPixelSegModel() : _pixelContrastWeight(0.0), _robustPottsWeight(0.0)
@@ -277,11 +315,11 @@ void drwnPixelSegModel::learnTrainingClassWeights(const vector<string>& baseName
     Eigen::Map<VectorXd>(&_classTrainingWeights[0], _classTrainingWeights.size()) /= total;
 }
 
-void drwnPixelSegModel::learnBoostedPixelModels(vector<vector<double> > featureVectors, vector<int> featureLabels, int numClasses){
+void drwnPixelSegModel::learnBoostedPixelModels(vector<vector<double> >& featureVectors, vector<int>& featureLabels, int numClasses){
 	// compute feature weights
 	vector<double> featureWeights(featureVectors.size(), 1.0);
 	vector<int> classCounts(numClasses, 0);
-	for (unsigned i = 0; i < featureLabels.size(); i++) {
+	for (unsigned int i = 0; i < featureLabels.size(); i++) {
 		classCounts[featureLabels[i]] += 1;
 	}
 
@@ -295,7 +333,7 @@ void drwnPixelSegModel::learnBoostedPixelModels(vector<vector<double> > featureV
 		vector<int> localLabels(featureLabels.size(), -1);
 		const double w1 = 1.0 / (double)classCounts[i];
 		const double w0 = 1.0 / (double)(featureLabels.size() - classCounts[i]);
-		for (unsigned j = 0; j < featureLabels.size(); j++) {
+		for (unsigned int j = 0; j < featureLabels.size(); j++) {
 			localLabels[j] = (featureLabels[j] == i) ? 1 : 0;
 			featureWeights[j] = (featureLabels[j] == i) ? w1 : w0;
 		}
@@ -308,7 +346,7 @@ void drwnPixelSegModel::learnBoostedPixelModels(vector<vector<double> > featureV
 		}
 		double J = ((drwnClassifier *)_pixelClassModels[i])->train(featureVectors,
 			localLabels, featureWeights);
-		DRWN_LOG_VERBOSE("...training objective: " << J);
+		DRWN_LOG_MESSAGE("...training objective: " << J);
 	}
 }
 
@@ -356,17 +394,70 @@ void drwnPixelSegModel::learnBoostedPixelModels(const vector<string>& baseNames,
     }
 }
 
+void drwnPixelSegModel::learnPixelUnaryModel(vector<vector<double> >& featureVectors, vector<int>& featureLabels, int numClasses)
+{
+
+	if (_pixelClassModels.empty()) {
+		DRWN_LOG_WARNING("learning unary potentials from raw (not boosted) features");
+	}
+
+	// accumulate training data
+
+	drwnClassifierDataset dataset;
+	dataset.features = featureVectors;
+	dataset.targets = featureLabels;
+
+	DRWN_ASSERT(!dataset.empty());
+
+	if (!_classTrainingWeights.empty()) {
+		dataset.weights.resize(dataset.targets.size(), 1.0);
+	for (unsigned i = 0; i < dataset.targets.size(); i++) {
+	  if ((dataset.targets[i] >= 0) &&
+		  (dataset.targets[i] < (int)_classTrainingWeights.size())) {
+		  dataset.weights[i] = _classTrainingWeights[dataset.targets[i]];
+		}
+	}
+	}
+
+	// train feature whitener
+	DRWN_LOG_MESSAGE("whitening feature vectors...");
+	_pixelFeatureWhitener.train(dataset.features);
+	_pixelFeatureWhitener.transform(dataset.features);
+
+	// train multi-class logistic model
+	DRWN_LOG_MESSAGE("learning multi-class logistic...");
+	drwnCodeProfiler::tic(drwnCodeProfiler::getHandle("trainPixelUnaryModel"));
+	_pixelUnaryModel.initialize(dataset.numFeatures(), numClasses);
+	_pixelUnaryModel.train(dataset);
+	drwnCodeProfiler::toc(drwnCodeProfiler::getHandle("trainPixelUnaryModel"));
+
+	// evaluate (on training data)
+	if (true) {
+		vector<int> predictedLabels;
+		_pixelUnaryModel.getClassifications(dataset.features, predictedLabels);
+
+		drwnConfusionMatrix confusion(numClasses);
+		confusion.accumulate(dataset.targets, predictedLabels);
+		confusion.write(cout);
+		DRWN_LOG_MESSAGE("Accuracy: " << confusion.accuracy());
+	}
+}
+
 void drwnPixelSegModel::learnPixelUnaryModel(const vector<string>& baseNames, int subSample)
 {
-    if (_pixelClassModels.empty()) {
+	vector<vector<double> > featureVectors;
+	vector<int> featureLabels;
+
+	if (_pixelClassModels.empty()) {
         DRWN_LOG_WARNING("learning unary potentials from raw (not boosted) features");
     }
 
     // accumulate training data
     const int numClasses = gMultiSegRegionDefs.maxKey() + 1;
     drwnClassifierDataset dataset;
-    buildSampledTrainingSet(baseNames, "lblExt", numClasses,
-        dataset.features, dataset.targets, subSample, _pixelClassModels.empty());
+    dataset.features = featureVectors;
+    dataset.targets = featureLabels;
+
     DRWN_ASSERT(!dataset.empty());
 
     if (!_classTrainingWeights.empty()) {
@@ -401,6 +492,10 @@ void drwnPixelSegModel::learnPixelUnaryModel(const vector<string>& baseNames, in
         confusion.write(cout);
         DRWN_LOG_VERBOSE("Accuracy: " << confusion.accuracy());
     }
+}
+
+void drwnPixelSegModel::computeUnaryResponse(const vector<vector<double> >& features, vector<int>& outputLabels){
+	_pixelUnaryModel.getClassifications(features, outputLabels);
 }
 
 void drwnPixelSegModel::learnPixelContrastWeight(const vector<string>& baseNames)
@@ -452,6 +547,20 @@ void drwnPixelSegModel::learnPixelContrastAndRobustPottsWeights(const vector<str
 
     // cross-validate weight
     crossValidateWeights(baseNames, pixelContrastValues, robustPottsValues);
+}
+
+// inference
+void drwnPixelSegModel::cacheUnaryPotentials(drwnSegImageInstance *instance, int size) const
+{
+
+    for (int i = 0; i < size; i++) {
+        vector<double> f(instance->unaries[i]);
+        _pixelFeatureWhitener.transform(f);
+        _pixelUnaryModel.getClassMarginals(f, instance->unaries[i]);
+        for (unsigned j = 0; j < instance->unaries[i].size(); j++) {
+            instance->unaries[i][j] = -1.0 * log(instance->unaries[i][j] + DRWN_DBL_MIN);
+        }
+    }
 }
 
 // inference
@@ -767,6 +876,45 @@ void drwnPixelSegModel::crossValidateWeights(const vector<string>& baseNames,
     threadPool.finish();
     for (unsigned i = 0; i < jobs.size(); i++) {
         delete jobs[i];
+    }
+
+    // find best weight
+    double bestScore = numeric_limits<double>::max();
+    for (map<pair<double, double>, double>::const_iterator it = scores.begin(); it != scores.end(); it++) {
+        DRWN_LOG_VERBOSE("CONTRAST/ROBUST POTTS WEIGHTS "
+            << setw(5) << setprecision(3) << it->first.first << " "
+            << setw(5) << setprecision(3) << it->first.second << "\t"
+            << setprecision(5) << it->second);
+        if (it->second < bestScore) {
+            _pixelContrastWeight = it->first.first;
+            _robustPottsWeight = it->first.second;
+            bestScore = it->second;
+        }
+    }
+}
+
+void drwnPixelSegModel::crossValidateWeights(const vector<double>& pairwiseContrastValues,
+		const vector<double>& robustPottsValues, const vector<vector<double> >& errors)
+{
+    // cross-validate pairwise contrast and robust potts weights
+    map<pair<double, double>, double> scores;
+
+    for(unsigned f = 0; f < errors.size(); f++){
+		for (unsigned i = 0, index = 0; i < robustPottsValues.size(); i++) {
+			for (unsigned j = 0; j < pairwiseContrastValues.size(); j++, index++) {
+
+				// unweighted error
+				double error = errors.at(f).at(index);
+
+				// update scores
+				const pair<double, double> w(pairwiseContrastValues[j], robustPottsValues[i]);
+				if (scores.find(w) == scores.end()) {
+					scores[w] = error;
+				} else {
+					scores[w] += error;
+				}
+			}
+		}
     }
 
     // find best weight

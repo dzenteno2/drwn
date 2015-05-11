@@ -66,6 +66,7 @@ void drwnPixelSegCRFInference::alphaExpansion(drwnSegImageInstance *instance,
     g->addNodes(nVariables);
     addAuxiliaryVariables(g, instance);
 
+
     bool bChanged = true;
     int lastChanged = -1;
     double minEnergy = numeric_limits<double>::max();

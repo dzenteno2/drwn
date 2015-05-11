@@ -48,7 +48,6 @@ void drwnPixelNeighbourContrasts::clear()
 
 void drwnPixelNeighbourContrasts::initialize(const cv::Mat& img)
 {
-    DRWN_ASSERT_MSG((img.channels() == 3) && (img.depth() == CV_8U), toString(img));
     DRWN_LOG_DEBUG("calculating pairwise contrast for " << toString(img) << "...");
     DRWN_FCN_TIC;
 
@@ -172,9 +171,9 @@ cv::Mat drwnPixelNeighbourContrasts::visualize(bool bComposite) const
 
 double drwnPixelNeighbourContrasts::pixelContrast(const cv::Mat& img, const cv::Point &p, const cv::Point& q)
 {
-    const cv::Vec3b a = img.at<cv::Vec3b>(p.y, p.x);
-    const cv::Vec3b b = img.at<cv::Vec3b>(q.y, q.x);
-    return (double)((int(a[0]) - int(b[0])) * (int(a[0]) - int(b[0])) +
-        (int(a[1]) - int(b[1])) * (int(a[1]) - int(b[1])) +
-        (int(a[2]) - int(b[2])) * (int(a[2]) - int(b[2])));
+    const cv::Vec3f a = img.at<cv::Vec3f>(p.y, p.x);
+    const cv::Vec3f b = img.at<cv::Vec3f>(q.y, q.x);
+    return (double)((a[0] - b[0]) * (a[0] - b[0]) +
+        (a[1] - b[1]) * (a[1] - b[1]) +
+        (a[2] - b[2]) * (a[2] - b[2]));
 }

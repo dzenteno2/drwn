@@ -102,8 +102,9 @@ class drwnPixelSegModel : public drwnWriteable {
     //! learn boosted classifiers for predicting classes from pixel features
     void learnBoostedPixelModels(const vector<string>& baseNames, int subSample = 0);
     //! learn unary potentials for calibrating pixel predictions
-    void learnBoostedPixelModels(vector<vector<double> > featureVectors, vector<int> featureLabels, int numClasses);
+    void learnBoostedPixelModels(vector<vector<double> >& featureVectors, vector<int>& featureLabels, int numClasses);
     void learnPixelUnaryModel(const vector<string>& baseNames, int subSample = 0);
+    void learnPixelUnaryModel(vector<vector<double> >& featureVectors, vector<int>& featureLabels, int numClasses);
     //! learn the weight of the pairwise constrast term
     void learnPixelContrastWeight(const vector<string>& baseNames);
     //! set the weight of the pairwise contrast term
@@ -115,6 +116,9 @@ class drwnPixelSegModel : public drwnWriteable {
     //! learn the weights of the pairwise contrast and robust potts consistency terms jointly
     void learnPixelContrastAndRobustPottsWeights(const vector<string>& baseNames);
 
+    vector<double> drwnGridSearchOperator(drwnSegImageInstance &instance, const vector<vector<int> > &pixelLabels, vector<double>& _robustPottsValues,
+    		vector<double>& _pairwiseContrastValues, int height, int width);
+
     //! get the weight of the pairwise contrast term
     double getPairwiseContrastWeight() const { return _pixelContrastWeight; }
     //! get the weight of the robust potts term
@@ -123,6 +127,7 @@ class drwnPixelSegModel : public drwnWriteable {
     // inference
     //! cache the unary potentials inside the instance object
     void cacheUnaryPotentials(drwnSegImageInstance *instance) const;
+    void cacheUnaryPotentials(drwnSegImageInstance *instance, int size) const;
     //! infer the pixel labels using learned model parameters and store the predicted
     //! labels inside the instance object
     double inferPixelLabels(drwnSegImageInstance *instance) const;
@@ -133,9 +138,15 @@ class drwnPixelSegModel : public drwnWriteable {
     //! return the energy of a given labeling according to the model parameters
     virtual double energy(drwnSegImageInstance *instance) const;
 
- protected:
     //! compute boosted pixel features \p y as a function of raw features \p x
-    void computeBoostedResponses(const vector<double>& x, vector<double>& y) const;
+	void computeBoostedResponses(const vector<double>& x, vector<double>& y) const;
+
+	void computeUnaryResponse(const vector<vector<double> >& features, vector<int>& outputLabels);
+
+	void crossValidateWeights(const vector<double>& pairwiseContrastValues,
+			const vector<double>& robustPottsValues, const vector<vector<double> >& errors);
+
+ protected:
     //! cache all boosted pixel features in \p instance
     void cacheBoostedPixelResponses(drwnSegImageInstance &instance) const;
 

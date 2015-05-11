@@ -29,6 +29,14 @@ using namespace std;
 
 // drwnSegImageInstance class ---------------------------------------------
 
+drwnSegImageInstance::drwnSegImageInstance(){}
+
+void drwnSegImageInstance::setSize(cv::Mat img){
+	// initialize random variables
+	_img = img;
+	pixelLabels = MatrixXi::Constant(height(), width(), -1);
+}
+
 drwnSegImageInstance::drwnSegImageInstance(const char *imgFilename, const char *baseName)
 {
     _img = cv::imread(string(imgFilename), CV_LOAD_IMAGE_COLOR);
@@ -99,6 +107,26 @@ drwnSegImageInstance& drwnSegImageInstance::operator=(const drwnSegImageInstance
     _softEdgeImg = instance._softEdgeImg.clone();
 
     return *this;
+}
+
+vector<vector<int> > drwnSegImageInstance::getLabels(){
+	vector<vector<int> > labels;
+	for (int y=0; y < height(); y++){
+		labels.push_back(vector<int>());
+		for (int x=0; x < width(); x++)
+			labels.back().push_back(pixelLabels(y, x));
+
+	}
+
+	return labels;
+
+}
+
+void drwnSegImageInstance::initInstance(int i)
+{
+    // cache pixel contrast
+    contrast.initialize(_img);
+    DRWN_FCN_TOC;
 }
 
 // protected member functions --------------------------------------------------------

@@ -63,6 +63,10 @@ class drwnSegImageInstance {
     MatrixXi pixelLabels;                  //!< pixel labels (0 to K-1) and -1 for unknown
 
  public:
+    drwnSegImageInstance();
+    void setSize(cv::Mat img);
+    void initInstance(int i);
+    vector<vector<int> > getLabels();
     //! create a drwnSegImageInstance from file
     drwnSegImageInstance(const char *imgFilename, const char *baseName = NULL);
     //! create an existing image
