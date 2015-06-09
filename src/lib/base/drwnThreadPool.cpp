@@ -21,7 +21,7 @@
 #include "drwnThreadPool.h"
 
 // Static members
-unsigned drwnThreadPool::MAX_THREADS = 4;
+unsigned drwnThreadPool::MAX_THREADS = 8;
 
 // drwnThreadJob --------------------------------------------------------------
 
